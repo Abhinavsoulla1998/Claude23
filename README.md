@@ -1,426 +1,294 @@
-# Claude Code — Developer Curriculum
-## From Zero to Expert: A Practical Guide for Development & QA Teams
+# Level 10 — AI Driven SDLC (Certification Prep)
 
-This curriculum is structured for development and QA teams adopting Claude Code. Choose your role below for a recommended path, or work through all lessons sequentially. Each lesson links to the course folder, official documentation, and Anthropic Academy video lessons.
+> Audience: Dev / QA Engineers | Certification: Claude Certified Architect – Foundations | Prerequisites: Levels 1–9
 
-**To get the most from this curriculum:** Read each lesson's README on GitHub, then clone this repo to run the exercises locally.
+## Overview
 
+This level maps the software development lifecycle to the 5 exam domains of the **Claude Certified Architect – Foundations** certification. Each section covers a distinct SDLC phase using Claude capabilities tested in the exam.
+
+**Exam format**: 4 of 6 scenarios presented at random · Multiple choice · Scaled score 100–1,000 · Passing score: **720**
+
+Use this level alongside the official exam guide PDF and hands-on practice with each example.
+
+---
+
+## What You'll Learn
+
+- Implement correct agentic loop control flow using `stop_reason` (`"tool_use"` vs `"end_turn"`)
+- Design coordinator-subagent (hub-and-spoke) multi-agent pipelines with explicit context passing
+- Configure CLAUDE.md hierarchies, path-specific rules, and custom skills for team workflows
+- Integrate Claude Code into CI/CD pipelines using non-interactive mode and structured JSON output
+- Design MCP tool interfaces with clear descriptions, scoped access, and structured error responses
+- Apply few-shot prompting and JSON schema enforcement for reliable structured extraction
+- Implement human-in-the-loop escalation, hook-based enforcement, and context management
+
+---
+
+## Domain Coverage
+
+| Domain | Weight | SDLC Phase | Section |
+|--------|--------|------------|---------|
+| D1: Agentic Architecture & Orchestration | 27% | Planning, Agentic Automation | 10.1, 10.5 |
+| D2: Tool Design & MCP Integration | 18% | Development, Agentic Automation | 10.2, 10.5 |
+| D3: Claude Code Config & Workflows | 20% | Development, Testing / CI-CD | 10.2, 10.4 |
+| D4: Prompt Engineering & Structured Output | 20% | Code Review, Testing / CI-CD | 10.3, 10.4 |
+| D5: Context Management & Reliability | 15% | All phases | 10.6 |
+
+---
+
+## Exam Scenarios Quick Reference
+
+| # | Scenario | Primary SDLC Phase | Key Domains |
+|---|----------|--------------------|-------------|
+| 1 | Customer Support Resolution Agent | Agentic Automation | D1, D2, D5 |
+| 2 | Code Generation with Claude Code | Development | D3, D5 |
+| 3 | Multi-Agent Research System | Planning / Analysis | D1, D2, D5 |
+| 4 | Developer Productivity with Claude | Development | D2, D3, D1 |
+| 5 | Claude Code for CI/CD | Testing / CI-CD | D3, D4 |
+| 6 | Structured Data Extraction | Quality / Reporting | D4, D5 |
+
+---
+
+## Section 10.1 — Planning & Architecture *(Domain 1)*
+
+**Plan mode** for multi-file / architectural decisions: `--permission-mode plan`, `/plan`, `/ultraplan`
+
+**Task decomposition** (D1 T1.6):
+- Prompt chaining for predictable multi-step workflows (e.g., analyze each file → run cross-file integration pass)
+- Adaptive decomposition for open-ended tasks that generate subtasks based on what is discovered at each step
+
+**Explore subagent pattern**: isolates verbose discovery output from main conversation context, preventing context window exhaustion during multi-phase tasks.
+
+**Session forking**: `fork_session` creates parallel branches from a shared analysis baseline to explore divergent approaches (e.g., two refactoring strategies).
+
+**Session resumption** (D1 T1.7):
+- `--resume <session-name>` to continue named sessions across work sessions
+- Inform a resumed session of specific file changes for targeted re-analysis rather than full re-exploration
+- Prefer a fresh session with an injected structured summary when prior tool results are stale
+
+→ Exercises: [`exercises/02-multi-agent-system.md`](exercises/02-multi-agent-system.md)
+
+---
+
+## Section 10.2 — Development & Code Generation *(Domain 3)*
+
+**CLAUDE.md hierarchy** (D3 T3.1):
+- User-level: `~/.claude/CLAUDE.md` — personal preferences, not shared via version control
+- Project-level: `.claude/CLAUDE.md` or root `CLAUDE.md` — shared team standards
+- Directory-level: subdirectory `CLAUDE.md` files for package-specific conventions
+- `@import` syntax for modular standards (e.g., `@import .claude/rules/testing.md`)
+
+**Path-specific rules** (D3 T3.3): `.claude/rules/` files with YAML `paths` frontmatter containing glob patterns. Rules load only when editing matching files — reduces irrelevant context and token usage.
+
+```yaml
+# .claude/rules/testing.md
+---
+paths: ["**/*.test.ts", "**/*.spec.ts"]
+---
+# Testing conventions apply only when editing test files
+```
+
+**Custom skills** (D3 T3.2):
+- `.claude/commands/` — project-scoped slash commands shared via version control
+- `~/.claude/commands/` — personal slash commands
+- `context: fork` frontmatter — isolates verbose skill output from main session
+- `allowed-tools` — restricts tool access during skill execution
+- `argument-hint` — prompts developer for parameters when invoking without arguments
+
+**Iterative refinement** (D3 T3.5):
+- Concrete input/output examples beat prose when natural language produces inconsistent results
+- Test-driven iteration: write test suite first, then share test failures to guide improvement
+- Interview pattern: have Claude ask clarifying questions before implementing in unfamiliar domains
+- Single message for interacting issues vs sequential messages for independent issues
+
+**Built-in tool selection** (D2 T2.5):
+
+| Tool | Use for |
+|------|---------|
+| Grep | Content search across a codebase (function names, error messages, import statements) |
+| Glob | Finding files by name or extension patterns (`**/*.test.tsx`) |
+| Read | Loading full file contents |
+| Edit | Targeted modifications using unique text matching |
+| Read + Write | Fallback when Edit cannot find a unique anchor |
+
+→ Examples: [`examples/`](examples/)
+→ Exercises: [`exercises/01-agentic-loops.md`](exercises/01-agentic-loops.md)
+
+---
+
+## Section 10.3 — Code Review & Quality *(Domain 4)*
+
+**Multi-instance review** (D4 T4.6): A model retains reasoning context from code generation, making it less likely to question its own decisions in the same session. Use an **independent** Claude instance (without prior reasoning context) for review — more effective at catching subtle issues.
+
+**Multi-pass review**: split large reviews into per-file local analysis passes, then a separate cross-file integration pass to avoid attention dilution and contradictory findings.
+
+**Explicit criteria over vague instructions** (D4 T4.1):
+- Bad: "Be conservative and only report high-confidence findings"
+- Good: "Report ONLY: (1) bugs where code behavior contradicts documented intent, (2) SQL injection / XSS vulnerabilities. Skip: style issues, naming conventions, local patterns."
+
+General instructions like "be conservative" fail to improve precision compared to specific categorical criteria. High false-positive categories undermine developer trust in accurate categories.
+
+**Few-shot prompting** (D4 T4.2): 2–4 targeted examples showing desired output format (location, issue, severity, suggested fix) for consistent classification and ambiguous-case handling. Few-shot examples enable the model to generalize judgment to novel patterns.
+
+`detected_pattern` field in findings schema: enables systematic analysis of which code patterns trigger dismissals, allowing prompt refinement over time.
+
+Slash commands: `/ultrareview`, `/security-review`, `/simplify`
+
+→ Exercises: [`exercises/04-structured-output.md`](exercises/04-structured-output.md)
+
+---
+
+## Section 10.4 — Testing & CI/CD Integration *(Domains 3 + 4)*
+
+**Non-interactive mode** (D3 T3.6):
 ```bash
-git clone https://github.com/InnovaSolutions-GlobalEnggTeam/ClaudeCurriculum.git
-cd ClaudeCurriculum
+# Use -p / --print to prevent interactive input hangs in CI
+claude -p "review the changed files" \
+  --output-format json \
+  --json-schema '{"type":"object","properties":{"issues":{"type":"array"}}}'
+```
+
+**Structured CI output**: `--output-format json` + `--json-schema` produces machine-parseable findings for automated posting as inline PR comments.
+
+**Session context isolation**: use a fresh, independent Claude instance for CI code review — not the same session that generated the code. On re-runs after new commits, include prior review findings in context and instruct Claude to report only new or still-unaddressed issues.
+
+**CLAUDE.md as CI context carrier**: include testing standards, fixture conventions, review criteria, and available test utilities so CI-invoked Claude Code has full project context.
+
+**Batch processing** (D4 T4.5):
+
+| Use case | API |
+|----------|-----|
+| Blocking pre-merge checks | Synchronous API (immediate response) |
+| Overnight test generation | Message Batches API (50% cost savings, 24h window) |
+| Weekly security audits | Message Batches API |
+
+Batch API limitation: does NOT support mid-request tool calling.
+
+**Validation & retry loops** (D4 T4.4):
+- Append specific validation errors to the retry prompt for model self-correction
+- Retries are ineffective when required information is simply absent from the source document
+- Retries are effective for format mismatches and structural output errors
+
+→ Examples: [`examples/ci-review.yml`](examples/ci-review.yml), [`examples/structured-output.py`](examples/structured-output.py)
+→ Exercises: [`exercises/03-cicd-integration.md`](exercises/03-cicd-integration.md), [`exercises/04-structured-output.md`](exercises/04-structured-output.md)
+
+---
+
+## Section 10.5 — Agentic Automation & Tool Integration *(Domains 1 + 2)*
+
+**Agentic loop control** (D1 T1.1):
+- Continue loop when `stop_reason == "tool_use"`
+- Terminate loop when `stop_reason == "end_turn"`
+- Append tool results to conversation history between iterations
+- Anti-patterns: parsing natural language for termination signals, using iteration caps as the primary stopping mechanism
+
+**Coordinator-subagent pattern** (D1 T1.2) — hub-and-spoke:
+- Coordinator decomposes tasks, delegates, aggregates results, handles error routing
+- Subagents operate with **isolated context** — they do NOT inherit the coordinator's conversation history automatically
+- Route all subagent communication through the coordinator for observability and consistent error handling
+
+**Subagent spawning** (D1 T1.3):
+- `Task` tool + `allowedTools: ["Task"]` required for a coordinator to invoke subagents
+- All context must be **explicitly injected** in the subagent's prompt
+- Spawn parallel subagents in a **single** coordinator response (not across separate turns)
+- `AgentDefinition` configures system prompt, tool restrictions per subagent type
+
+**Hooks for enforcement** (D1 T1.5):
+- `PostToolUse` hook: intercepts tool results for transformation before the model processes them
+- Hook-based enforcement = **deterministic** compliance
+- Prompt-based instructions = **probabilistic** compliance (non-zero failure rate)
+- Use hooks when business rules require guaranteed compliance (e.g., refund thresholds, PII handling)
+
+**Structured escalation/handoff** (D1 T1.4): include customer/task ID, root cause, recommended action in handoffs so human agents who lack conversation access can act immediately.
+
+**Tool interface design** (D2 T2.1):
+- Tool descriptions are the primary mechanism LLMs use for tool selection
+- Minimal descriptions lead to unreliable selection among similar tools
+- Include: input format, example queries, edge cases, boundary explanations
+- Rename or split tools to eliminate functional overlap (e.g., split `analyze_document` into `extract_data_points`, `summarize_content`, `verify_claim_against_source`)
+
+**Tool distribution** (D2 T2.3):
+- Scope each subagent's tool set to its role — too many tools (18 vs 4–5) degrades reliability
+- `tool_choice` options: `"auto"` (may return text), `"any"` (must call a tool), `{"type":"tool","name":"..."}` (must call specific tool)
+
+**MCP integration** (D2 T2.4):
+- `.mcp.json` — project-scoped, version-controlled, shared team tooling
+- `~/.claude.json` — user-scoped, personal/experimental servers
+- `${ENV_VAR}` expansion for credentials — never commit secrets directly
+- MCP resources: expose content catalogs (issue summaries, DB schema) to reduce exploratory tool calls
+
+**MCP error responses** (D2 T2.2): return `errorCategory` (transient/validation/permission), `isRetryable` boolean, human-readable description. Distinguish access failures (need retry decisions) from valid empty results (successful query with no matches).
+
+→ Examples: [`examples/agentic-loop.py`](examples/agentic-loop.py), [`examples/coordinator-subagent.py`](examples/coordinator-subagent.py), [`examples/post-tool-use-hook.json`](examples/post-tool-use-hook.json), [`examples/mcp-config.json`](examples/mcp-config.json)
+→ Exercises: [`exercises/01-agentic-loops.md`](exercises/01-agentic-loops.md), [`exercises/02-multi-agent-system.md`](exercises/02-multi-agent-system.md)
+
+---
+
+## Section 10.6 — Context Management & Reliability *(Domain 5)*
+
+**Human-in-the-loop**: programmatic prerequisite gates enforce step ordering when deterministic compliance is required. Prompt instructions alone have a non-zero failure rate for compliance-critical sequences (e.g., block `process_refund` until `get_customer` returns a verified ID).
+
+**Long session management**:
+- `--resume <session-name>` for named session continuation across work sessions
+- Inform resumed sessions of specific file changes for targeted re-analysis
+- When prior tool results are stale: start a fresh session with a structured summary rather than resuming
+
+**Self-evaluation patterns**: model self-reports confidence per finding alongside structured output, enabling calibrated routing (high-confidence findings post automatically; low-confidence findings route to human review).
+
+**Conflict detection in extraction**: include `calculated_total` alongside `stated_total` to flag discrepancies; add `conflict_detected` boolean for cases where source data is internally inconsistent.
+
+**Schema design for reliability** (D4 T4.3):
+- Make fields nullable when source documents may not contain the information — prevents fabrication
+- `"unclear"` enum value for genuinely ambiguous cases
+- `"other"` + detail string for extensible categorization beyond predefined lists
+
+→ Exercises: [`exercises/04-structured-output.md`](exercises/04-structured-output.md), [`exercises/05-exam-scenarios.md`](exercises/05-exam-scenarios.md)
+
+---
+
+## Section 10.7 — Certification Exam Scenarios Crosswalk
+
+| Scenario | Primary SDLC Phase | Key Domains | Section |
+|----------|--------------------|-------------|---------|
+| 1: Customer Support Resolution Agent | Agentic Automation | D1, D2, D5 | 10.5, 10.6 |
+| 2: Code Generation with Claude Code | Development | D3, D5 | 10.2, 10.6 |
+| 3: Multi-Agent Research System | Planning / Analysis | D1, D2, D5 | 10.1, 10.5, 10.6 |
+| 4: Developer Productivity with Claude | Development | D2, D3, D1 | 10.2, 10.5 |
+| 5: Claude Code for CI/CD | Testing / CI-CD | D3, D4 | 10.4 |
+| 6: Structured Data Extraction | Quality / Reporting | D4, D5 | 10.3, 10.6 |
+
+→ Practice questions for all 6 scenarios: [`exercises/05-exam-scenarios.md`](exercises/05-exam-scenarios.md)
+
+---
+
+## Folder Contents
+
+```
+10-ai-driven-sdlc/
+├── README.md                          ← This file
+├── examples/
+│   ├── agentic-loop.py                ← D1 T1.1: stop_reason control flow
+│   ├── coordinator-subagent.py        ← D1 T1.2-1.3: hub-and-spoke pattern
+│   ├── post-tool-use-hook.json        ← D1 T1.5: hook-based enforcement
+│   ├── ci-review.yml                  ← D3 T3.6: GitHub Actions CI pipeline
+│   ├── structured-output.py           ← D4 T4.3-4.4: JSON schema + retry loop
+│   └── mcp-config.json               ← D2 T2.4: MCP server configuration
+└── exercises/
+    ├── 01-agentic-loops.md            ← D1 T1.1 exercises
+    ├── 02-multi-agent-system.md       ← D1 T1.2-1.3, 1.7 exercises
+    ├── 03-cicd-integration.md         ← D3 T3.6 exercises
+    ├── 04-structured-output.md        ← D4 T4.1-4.4 exercises
+    └── 05-exam-scenarios.md           ← Practice questions + self-assessment
 ```
 
 ---
 
-## Choose Your Learning Path
+## Anthropic Academy Resources
 
-### I am a Developer
-> Goal: Use Claude Code to write, debug, refactor, and review code faster every day.
+Official lessons that complement this level (full-course review):
 
-**Recommended path (~24 hrs):**
-Lesson 1 → Lesson 2 → Lesson 3 → Lesson 6 → Lesson 5 → Lesson 8 → Lesson 9
+### Claude Code in Action
+- [Summary and next steps](https://anthropic.skilljar.com/claude-code-in-action/303238)
 
-| Start here | Quick wins |
-|------------|-----------|
-| [Lesson 1 — Foundations](levels/01-foundations/README.md) | [Prompt Patterns for Developers](quick-reference/prompt-patterns-developer.md) · [CLAUDE.md Template](levels/02-core-features/templates/CLAUDE.md.template) |
-
----
-
-### I am a QA Engineer
-> Goal: Automate test writing, integrate Claude into CI/CD pipelines, and use it for quality and security analysis.
-
-**Recommended path (~22 hrs):**
-Lesson 1 → Lesson 2 → Lesson 3 → Lesson 4 → Lesson 5 → Lesson 6 → Lesson 9
-
-| Start here | Quick wins |
-|------------|-----------|
-| [Lesson 1 — Foundations](levels/01-foundations/README.md) | [Prompt Patterns for QA](quick-reference/prompt-patterns-qa.md) · [GitHub Actions Review Workflow](levels/04-cicd-quality/examples/github-actions-review.yml) |
-
----
-
-### I am a Team Lead / Architect
-> Goal: Establish team standards, set up CI/CD automation, configure MCP, and manage cost and compliance.
-
-**Recommended path (~30 hours total):**
-All lessons in order. Focus especially on Lessons 2, 4, 5, 6, and 9.
-
-| Start here | Quick wins |
-|------------|-----------|
-| [Lesson 2 — Core Features](levels/02-core-features/README.md) | [Team CLAUDE.md Template](levels/09-enterprise-mastery/examples/team-claude-md.template) · [Compliance Settings](levels/09-enterprise-mastery/examples/compliance-settings.json) |
-
----
-
-## Study Plan
-
-| Lesson | Title | Audience | Duration | Key Focus |
-|--------|-------|----------|----------|-----------|
-| [1](#lesson-1--foundations) | Foundations | Everyone | 1–2 hrs | Install, first session, Desktop app, IDE setup, settings |
-| [2](#lesson-2--core-features) | Core Features | Everyone | 2–3 hrs | Commands, CLAUDE.md, permissions, model selection |
-| [3](#lesson-3--daily-dev-workflows) | Daily Dev Workflows | Developer, QA | 3–5 hrs | Debugging, refactoring, code review, PRs, prompt engineering |
-| [4](#lesson-4--cicd--quality-automation) | CI/CD & Quality Automation | QA, Team Lead | 2–3 hrs | GitHub Actions, GitLab CI, quality gates, test analysis |
-| [5](#lesson-5--mcp-connecting-your-tools) | MCP — Connecting Your Tools | Everyone | 3–5 hrs | Database, GitHub, Slack, browser, custom MCP servers |
-| [6](#lesson-6--automation--hooks) | Automation & Hooks | Developer, Team Lead | 2–4 hrs | Hooks, skills, subagents, scheduled tasks |
-| [7](#lesson-7--advanced-configuration) | Advanced Configuration | Team Lead | 1–2 hrs | Settings hierarchy, env vars, network, alternative providers |
-| [8](#lesson-8--agent-sdk) | Agent SDK | Developer (advanced) | 4–6 hrs | Python/TypeScript SDK, tool use, streaming, Claude features |
-| [9](#lesson-9--enterprise--mastery) | Enterprise & Mastery | Team Lead | 3–5 hrs | Teams, compliance, RAG pipelines, agent workflows |
-| [10](#lesson-10--ai-driven-sdlc--certification-prep) | AI-Driven SDLC | Dev, QA (Cert track) | 1–3 hrs | Agentic loops, MCP, CI/CD, structured output, reliability |
-| | | | **~30 hrs total** | *(range: 22–38 hrs)* |
-
----
-
-## Lessons
-
----
-
-### Lesson 1 — Foundations
-**1–2 hrs · Everyone**
-
-[Open Lesson 1 →](levels/01-foundations/README.md)
-
-**What you'll learn:**
-- What Claude Code is and how the agentic loop works
-- Installing and authenticating on macOS, Linux, and Windows
-- Running your first interactive and non-interactive sessions
-- Using the Desktop application and IDE integrations (VS Code, JetBrains)
-- Configuring themes, permission modes, and the status line
-
-**Official Documentation:**
-[Overview](https://code.claude.com/docs/en/overview) · [How Claude Code Works](https://code.claude.com/docs/en/how-claude-code-works) · [Setup & Installation](https://code.claude.com/docs/en/setup) · [Authentication](https://code.claude.com/docs/en/authentication) · [Quickstart](https://code.claude.com/docs/en/quickstart) · [CLI Reference](https://code.claude.com/docs/en/cli-reference) · [Interactive Mode](https://code.claude.com/docs/en/interactive-mode) · [Keybindings](https://code.claude.com/docs/en/keybindings) · [Output Styles](https://code.claude.com/docs/en/output-styles) · [Status Line](https://code.claude.com/docs/en/statusline) · [Settings](https://code.claude.com/docs/en/settings)
-
-**Anthropic Academy:**
-
-| Course | Lessons |
-|--------|---------|
-| Claude Code in Action | [Introduction](https://anthropic.skilljar.com/claude-code-in-action/303233) · [What is a coding assistant?](https://anthropic.skilljar.com/claude-code-in-action/303235) · [Claude Code in action](https://anthropic.skilljar.com/claude-code-in-action/303242) · [Claude Code setup](https://anthropic.skilljar.com/claude-code-in-action/301614) · [Project setup](https://anthropic.skilljar.com/claude-code-in-action/301615) |
-| Claude 101 | [What is Claude?](https://anthropic.skilljar.com/claude-101/383389) · [Your first conversation with Claude](https://anthropic.skilljar.com/claude-101/383390) · [Claude desktop app: Chat, Cowork, Code](https://anthropic.skilljar.com/claude-101/440908) |
-| Claude with the Anthropic API | [Overview of Claude models](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287722) · [Anthropic apps](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287787) · [Claude Code setup](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287788) · [Claude Code in action](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287805) |
-
----
-
-### Lesson 2 — Core Features
-**2–3 hrs · Everyone**
-
-[Open Lesson 2 →](levels/02-core-features/README.md)
-
-**What you'll learn:**
-- Slash commands: `/help`, `/model`, `/cost`, `/branch`, `/rewind`, `/resume`, and more
-- Creating and maintaining a `CLAUDE.md` project memory file
-- Understanding and configuring permission modes (default, plan, auto)
-- Selecting models (Haiku, Sonnet, Opus) and effort levels
-- Session checkpointing and conversation branching
-
-**Official Documentation:**
-[Commands Reference](https://code.claude.com/docs/en/commands) · [Memory (CLAUDE.md)](https://code.claude.com/docs/en/memory) · [Context Window](https://code.claude.com/docs/en/context-window) · [Permission Modes](https://code.claude.com/docs/en/permission-modes) · [Permissions](https://code.claude.com/docs/en/permissions) · [Security](https://code.claude.com/docs/en/security) · [Model Configuration](https://code.claude.com/docs/en/model-config) · [Fast Mode](https://code.claude.com/docs/en/fast-mode) · [Checkpointing](https://code.claude.com/docs/en/checkpointing)
-
-**Anthropic Academy:**
-
-| Course | Lessons |
-|--------|---------|
-| Claude Code in Action | [Adding context](https://anthropic.skilljar.com/claude-code-in-action/303241) · [Controlling context](https://anthropic.skilljar.com/claude-code-in-action/303237) |
-| Claude 101 | [Introduction to projects](https://anthropic.skilljar.com/claude-101/383393) · [Creating with artifacts](https://anthropic.skilljar.com/claude-101/383394) |
-| Claude with the Anthropic API | [System prompts](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287733) · [Temperature](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287728) |
-
----
-
-### Lesson 3 — Daily Dev Workflows
-**3–5 hrs · Developer, QA**
-
-[Open Lesson 3 →](levels/03-daily-dev-workflows/README.md)
-
-**What you'll learn:**
-- Common patterns: exploring codebases, fixing bugs, writing tests, refactoring
-- Code review with `/review`, `/security-review`, `/simplify`, and `/ultrareview`
-- Plan mode for multi-step changes and large refactors
-- Prompt engineering techniques for reliable, repeatable results
-- Git workflow integration: commit messages, PR descriptions, changelogs
-- Debugging patterns for async errors, CI-only failures, and merge conflicts
-
-**Official Documentation:**
-[Common Workflows](https://code.claude.com/docs/en/common-workflows) · [Code Review](https://code.claude.com/docs/en/code-review) · [Plan Mode](https://code.claude.com/docs/en/permission-modes) · [Best Practices](https://code.claude.com/docs/en/best-practices)
-
-**Anthropic Academy:**
-
-| Course | Lessons |
-|--------|---------|
-| Claude Code in Action | [Making changes](https://anthropic.skilljar.com/claude-code-in-action/303236) · [Github integration](https://anthropic.skilljar.com/claude-code-in-action/303240) |
-| Claude 101 | [Getting better results](https://anthropic.skilljar.com/claude-101/383392) · [Research mode for deep dives](https://anthropic.skilljar.com/claude-101/383399) |
-| Claude with the Anthropic API — Prompt Evaluation | [Prompt evaluation](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287731) · [A typical eval workflow](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287736) · [Generating test datasets](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287739) · [Running the eval](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287743) · [Model based grading](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287742) · [Code based grading](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287737) |
-| Claude with the Anthropic API — Prompt Engineering | [Prompt engineering](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287745) · [Being clear and direct](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287744) · [Being specific](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287740) · [Structure with XML tags](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287741) · [Providing examples](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287746) |
-
----
-
-### Lesson 4 — CI/CD & Quality Automation
-**2–3 hrs · QA, Team Lead**
-
-[Open Lesson 4 →](levels/04-cicd-quality/README.md)
-
-**What you'll learn:**
-- Automated PR review with GitHub Actions (trigger via `@claude` comment)
-- CI quality gate that exits 1 on HIGH severity findings
-- Auto-generating release notes on tag push
-- GitLab CI/CD integration for merge request review
-- Automated test failure root-cause analysis
-
-**Official Documentation:**
-[GitHub Actions](https://code.claude.com/docs/en/github-actions) · [GitLab CI/CD](https://code.claude.com/docs/en/gitlab-ci-cd)
-
-**Curriculum examples:**
-[github-actions-review.yml](levels/04-cicd-quality/examples/github-actions-review.yml) · [quality-gate.sh](levels/04-cicd-quality/examples/quality-gate.sh) · [github-actions-release-notes.yml](levels/04-cicd-quality/examples/github-actions-release-notes.yml) · [gitlab-ci-review.yml](levels/04-cicd-quality/examples/gitlab-ci-review.yml) · [test-failure-analysis.sh](levels/04-cicd-quality/examples/test-failure-analysis.sh)
-
-**Anthropic Academy:**
-
-| Course | Lessons |
-|--------|---------|
-| Claude Code in Action | [Github integration](https://anthropic.skilljar.com/claude-code-in-action/303240) |
-
----
-
-### Lesson 5 — MCP: Connecting Your Tools
-**3–5 hrs · Everyone**
-
-[Open Lesson 5 →](levels/05-mcp-connecting-tools/README.md)
-
-**What you'll learn:**
-- MCP concepts: tools, resources, prompts, and transports
-- Connecting Claude to PostgreSQL, SQLite, GitHub, Slack, and browser
-- Building a custom REST API MCP server from scratch
-- Using MCP inside the Agent SDK
-- MCP security patterns and least-privilege configuration
-
-**Official Documentation:**
-[MCP](https://code.claude.com/docs/en/mcp) · [Plugins](https://code.claude.com/docs/en/plugins) · [Slack Integration](https://code.claude.com/docs/en/slack) · [Plugin Marketplace](https://code.claude.com/docs/en/plugin-marketplaces)
-
-**Anthropic Academy:**
-
-| Course | Lessons |
-|--------|---------|
-| Claude Code in Action | [MCP servers with Claude Code](https://anthropic.skilljar.com/claude-code-in-action/303239) |
-| Introduction to MCP | [Welcome to the course](https://anthropic.skilljar.com/introduction-to-model-context-protocol/303756) · [Introducing MCP](https://anthropic.skilljar.com/introduction-to-model-context-protocol/296689) · [MCP clients](https://anthropic.skilljar.com/introduction-to-model-context-protocol/296690) · [Project setup](https://anthropic.skilljar.com/introduction-to-model-context-protocol/296694) · [Defining tools with MCP](https://anthropic.skilljar.com/introduction-to-model-context-protocol/296697) · [The server inspector](https://anthropic.skilljar.com/introduction-to-model-context-protocol/296693) · [Implementing a client](https://anthropic.skilljar.com/introduction-to-model-context-protocol/296696) · [Defining resources](https://anthropic.skilljar.com/introduction-to-model-context-protocol/296699) · [Accessing resources](https://anthropic.skilljar.com/introduction-to-model-context-protocol/296695) · [Defining prompts](https://anthropic.skilljar.com/introduction-to-model-context-protocol/296698) · [Prompts in the client](https://anthropic.skilljar.com/introduction-to-model-context-protocol/296692) |
-| MCP Advanced Topics | [Let's get started!](https://anthropic.skilljar.com/model-context-protocol-advanced-topics/296349) · [Sampling](https://anthropic.skilljar.com/model-context-protocol-advanced-topics/296288) · [Sampling walkthrough](https://anthropic.skilljar.com/model-context-protocol-advanced-topics/295172) · [Log and progress notifications](https://anthropic.skilljar.com/model-context-protocol-advanced-topics/296284) · [Notifications walkthrough](https://anthropic.skilljar.com/model-context-protocol-advanced-topics/291036) · [Roots](https://anthropic.skilljar.com/model-context-protocol-advanced-topics/296289) · [Roots walkthrough](https://anthropic.skilljar.com/model-context-protocol-advanced-topics/295839) · [JSON message types](https://anthropic.skilljar.com/model-context-protocol-advanced-topics/296290) · [The STDIO transport](https://anthropic.skilljar.com/model-context-protocol-advanced-topics/296291) · [The StreamableHTTP transport](https://anthropic.skilljar.com/model-context-protocol-advanced-topics/296287) · [StreamableHTTP in depth](https://anthropic.skilljar.com/model-context-protocol-advanced-topics/296286) · [State and the StreamableHTTP transport](https://anthropic.skilljar.com/model-context-protocol-advanced-topics/296285) |
-| Claude with the Anthropic API — MCP | [MCP review](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287790) · [Enhancements with MCP servers](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287792) |
-
----
-
-### Lesson 6 — Automation & Hooks
-**2–4 hrs · Developer, Team Lead**
-
-[Open Lesson 6 →](levels/06-automation-hooks/README.md)
-
-**What you'll learn:**
-- Writing PreToolUse and PostToolUse hooks for event-driven automation
-- Building custom slash commands (skills) using Markdown
-- Scheduling recurring tasks with `/loop` and `/schedule`
-- Creating and managing subagents for parallel task delegation
-- Remote control and session teleport between terminal and web
-
-**Official Documentation:**
-[Hooks Guide](https://code.claude.com/docs/en/hooks-guide) · [Hooks Reference](https://code.claude.com/docs/en/hooks) · [Skills](https://code.claude.com/docs/en/skills) · [Subagents](https://code.claude.com/docs/en/sub-agents) · [Scheduled Tasks](https://code.claude.com/docs/en/scheduled-tasks) · [Routines](https://code.claude.com/docs/en/routines) · [Desktop Scheduled Tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks) · [Remote Control](https://code.claude.com/docs/en/remote-control)
-
-**Anthropic Academy:**
-
-| Course | Lessons |
-|--------|---------|
-| Claude Code in Action — Hooks | [Introducing hooks](https://anthropic.skilljar.com/claude-code-in-action/312000) · [Defining hooks](https://anthropic.skilljar.com/claude-code-in-action/312002) · [Implementing a hook](https://anthropic.skilljar.com/claude-code-in-action/312003) · [Gotchas around hooks](https://anthropic.skilljar.com/claude-code-in-action/312423) · [Useful hooks!](https://anthropic.skilljar.com/claude-code-in-action/312004) · [Another useful hook](https://anthropic.skilljar.com/claude-code-in-action/312427) · [Custom commands](https://anthropic.skilljar.com/claude-code-in-action/303234) |
-| Introduction to Agent Skills | [What are skills?](https://anthropic.skilljar.com/introduction-to-agent-skills/434525) · [Creating your first skill](https://anthropic.skilljar.com/introduction-to-agent-skills/434527) · [Configuration and multi-file skills](https://anthropic.skilljar.com/introduction-to-agent-skills/434526) · [Skills vs. other Claude Code features](https://anthropic.skilljar.com/introduction-to-agent-skills/434528) · [Sharing skills](https://anthropic.skilljar.com/introduction-to-agent-skills/434529) · [Troubleshooting skills](https://anthropic.skilljar.com/introduction-to-agent-skills/434530) |
-| Introduction to Subagents | [What are subagents?](https://anthropic.skilljar.com/introduction-to-subagents/450698) · [Creating a subagent](https://anthropic.skilljar.com/introduction-to-subagents/450699) · [Designing effective subagents](https://anthropic.skilljar.com/introduction-to-subagents/450700) · [Using subagents effectively](https://anthropic.skilljar.com/introduction-to-subagents/450701) |
-| Claude with the Anthropic API | [Workflows vs agents](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287794) |
-
----
-
-### Lesson 7 — Advanced Configuration
-**1–2 hrs · Team Lead**
-
-[Open Lesson 7 →](levels/07-advanced-config/README.md)
-
-**What you'll learn:**
-- The three-tier settings hierarchy (global → project → local override)
-- Environment variables for auth, model routing, and feature flags
-- Network configuration: proxy, TLS inspection, air-gapped environments
-- Connecting Claude Code to AWS Bedrock and Google Vertex AI
-- Cost monitoring and server-managed enterprise policy enforcement
-
-**Official Documentation:**
-[Settings](https://code.claude.com/docs/en/settings) · [Environment Variables](https://code.claude.com/docs/en/env-vars) · [Network Configuration](https://code.claude.com/docs/en/network-config) · [Terminal Configuration](https://code.claude.com/docs/en/terminal-config) · [Dev Container Support](https://code.claude.com/docs/en/devcontainer) · [Amazon Bedrock](https://code.claude.com/docs/en/amazon-bedrock) · [Google Vertex AI](https://code.claude.com/docs/en/google-vertex-ai) · [Microsoft Foundry](https://code.claude.com/docs/en/microsoft-foundry) · [LLM Gateway](https://code.claude.com/docs/en/llm-gateway) · [Server-Managed Settings](https://code.claude.com/docs/en/server-managed-settings) · [Costs](https://code.claude.com/docs/en/costs) · [Voice Dictation](https://code.claude.com/docs/en/voice-dictation)
-
-**Anthropic Academy:**
-
-| Course | Lessons |
-|--------|---------|
-| Claude with the Anthropic API | [Accessing the API](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287726) · [Getting an API key](https://anthropic.skilljar.com/claude-with-the-anthropic-api/296766) |
-
----
-
-### Lesson 8 — Agent SDK
-**4–6 hrs · Developer (advanced)**
-
-[Open Lesson 8 →](levels/08-agent-sdk/README.md)
-
-**What you'll learn:**
-- Python and TypeScript SDK fundamentals: `query()`, streaming loops, `ClaudeCodeOptions`
-- Handling streaming message events (text, tool_use, tool_result, result)
-- Extracting structured JSON output with schema validation and retry loops
-- Defining custom tools with input schemas and handler functions
-- In-process SDK hooks (PreToolUse / PostToolUse) for programmatic control
-- Secure deployment: permission modes, rate limiting, least-privilege sandboxing
-
-**Official Documentation:**
-[Agent SDK Overview](https://code.claude.com/docs/en/agent-sdk/overview) · [Python SDK](https://code.claude.com/docs/en/agent-sdk/python) · [TypeScript SDK](https://code.claude.com/docs/en/agent-sdk/typescript) · [Agent Loop](https://code.claude.com/docs/en/agent-sdk/agent-loop) · [Streaming vs. Single Mode](https://code.claude.com/docs/en/agent-sdk/streaming-vs-single-mode) · [Structured Outputs](https://code.claude.com/docs/en/agent-sdk/structured-outputs) · [Custom Tools](https://code.claude.com/docs/en/agent-sdk/custom-tools) · [SDK Hooks](https://code.claude.com/docs/en/agent-sdk/hooks) · [Subagents](https://code.claude.com/docs/en/agent-sdk/subagents) · [Secure Deployment](https://code.claude.com/docs/en/agent-sdk/secure-deployment) · [Observability](https://code.claude.com/docs/en/agent-sdk/observability) · [Cost Tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking)
-
-**Anthropic Academy:**
-
-| Course | Lessons |
-|--------|---------|
-| Claude Code in Action | [The Claude Code SDK](https://anthropic.skilljar.com/claude-code-in-action/312001) |
-| Claude with the Anthropic API — Core API | [Welcome to the course](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287818) · [Making a request](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287725) · [Multi-Turn conversations](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287735) · [Response streaming](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287734) · [Structured data](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287732) |
-| Claude with the Anthropic API — Tool Use | [Introducing tool use](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287747) · [Project overview](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287751) · [Tool functions](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287756) · [Tool schemas](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287753) · [Handling message blocks](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287757) · [Sending tool results](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287752) · [Multi-turn conversations with tools](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287750) · [Implementing multiple turns](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287758) · [Using multiple tools](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287749) · [Fine grained tool calling](https://anthropic.skilljar.com/claude-with-the-anthropic-api/313160) · [The text edit tool](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287760) · [The web search tool](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287755) |
-| Claude with the Anthropic API — Features of Claude | [Extended thinking](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287773) · [Image support](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287778) · [PDF support](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287768) · [Citations](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287771) · [Prompt caching](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287772) · [Rules of prompt caching](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287770) · [Prompt caching in action](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287774) · [Code execution and the Files API](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287777) |
-
----
-
-### Lesson 9 — Enterprise & Mastery
-**3–5 hrs · Team Lead**
-
-[Open Lesson 9 →](levels/09-enterprise-mastery/README.md)
-
-**What you'll learn:**
-- Standardizing CLAUDE.md templates and onboarding at organization scale
-- Setting up agent teams for parallel workstreams
-- Enterprise features: GitHub Enterprise Server, Slack, analytics
-- Privacy and compliance: Zero Data Retention, audit logging, prompt injection defense
-- Advanced patterns: morning briefings, pipeline composition, parallel reviews, cost management
-- Retrieval Augmented Generation (RAG) and agentic search workflows
-
-**Official Documentation:**
-[Agent Teams](https://code.claude.com/docs/en/agent-teams) · [Channels](https://code.claude.com/docs/en/channels) · [GitHub Enterprise Server](https://code.claude.com/docs/en/github-enterprise-server) · [Slack Integration](https://code.claude.com/docs/en/slack) · [Analytics](https://code.claude.com/docs/en/analytics) · [Zero Data Retention](https://code.claude.com/docs/en/zero-data-retention) · [Legal & Compliance](https://code.claude.com/docs/en/legal-and-compliance) · [Sandboxing](https://code.claude.com/docs/en/sandboxing) · [Best Practices](https://code.claude.com/docs/en/best-practices) · [Changelog](https://code.claude.com/docs/en/changelog) · [Claude Directory](https://code.claude.com/docs/en/claude-directory) · [Third-Party Integrations](https://code.claude.com/docs/en/third-party-integrations)
-
-**Anthropic Academy:**
-
-| Course | Lessons |
-|--------|---------|
-| Claude 101 | [Working with skills](https://anthropic.skilljar.com/claude-101/383396) · [Enterprise search](https://anthropic.skilljar.com/claude-101/383398) · [Claude in action: use-cases by role](https://anthropic.skilljar.com/claude-101/383401) · [Other ways to work with Claude](https://anthropic.skilljar.com/claude-101/383402) |
-| Claude with the Anthropic API — RAG and Agentic Search | [Introducing Retrieval Augmented Generation](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287763) · [Text chunking strategies](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287776) · [Text embeddings](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287759) · [The full RAG flow](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287764) · [Implementing the RAG flow](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287761) · [BM25 lexical search](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287767) · [A Multi-Index RAG pipeline](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287766) |
-| Claude with the Anthropic API — Agents and Workflows | [Agents and workflows](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287796) · [Parallelization workflows](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287804) · [Chaining workflows](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287800) · [Routing workflows](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287801) · [Agents and tools](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287803) · [Environment inspection](https://anthropic.skilljar.com/claude-with-the-anthropic-api/287798) |
-
----
-
-### Lesson 10 — AI-Driven SDLC (Certification Prep)
-**Certification track · Developer, QA**
-
-[Open Lesson 10 →](levels/10-ai-driven-sdlc/README.md)
-
-**Certification:** Claude Certified Architect – Foundations · Passing score: 720 / 1,000
-
-**Domain weights:**
-
-| Domain | Topic | Weight |
-|--------|-------|--------|
-| D1 | Agentic Architecture & Orchestration | 27% |
-| D2 | Tool Design & MCP Integration | 18% |
-| D3 | Claude Code Config & Workflows | 20% |
-| D4 | Prompt Engineering & Structured Output | 20% |
-| D5 | Context Management & Reliability | 15% |
-
-**What you'll learn:**
-- Agentic loop control: `stop_reason` handling, coordinator-subagent pattern
-- CLAUDE.md hierarchy and path-specific rules for large codebases
-- Non-interactive CI/CD mode (`-p` flag, `--output-format json`)
-- Structured output with JSON schema, retry loops, and conflict detection
-- MCP project-scoped vs. user-scoped config, error response design
-- Context window management, long session strategies, human-in-the-loop gates
-
-**Exam Scenarios:**
-
-| Scenario | SDLC Phase | Key Domains | Exercises |
-|----------|-----------|-------------|-----------|
-| 1: Customer Support Resolution Agent | Agentic Automation | D1, D2, D5 | [10.5, 10.6](levels/10-ai-driven-sdlc/README.md) |
-| 2: Code Generation with Claude Code | Development | D3, D5 | [10.2, 10.6](levels/10-ai-driven-sdlc/README.md) |
-| 3: Multi-Agent Research System | Planning / Analysis | D1, D2, D5 | [10.1, 10.5, 10.6](levels/10-ai-driven-sdlc/README.md) |
-| 4: Developer Productivity with Claude | Development | D2, D3, D1 | [10.2, 10.5](levels/10-ai-driven-sdlc/README.md) |
-| 5: Claude Code for CI/CD | Testing / CI-CD | D3, D4 | [10.4](levels/10-ai-driven-sdlc/README.md) |
-| 6: Structured Data Extraction | Quality / Reporting | D4, D5 | [10.3, 10.6](levels/10-ai-driven-sdlc/README.md) |
-
-→ Practice questions: [exercises/05-exam-scenarios.md](levels/10-ai-driven-sdlc/exercises/05-exam-scenarios.md)
-
-**Curriculum examples:**
-[agentic-loop.py](levels/10-ai-driven-sdlc/examples/agentic-loop.py) · [coordinator-subagent.py](levels/10-ai-driven-sdlc/examples/coordinator-subagent.py) · [ci-review.yml](levels/10-ai-driven-sdlc/examples/ci-review.yml) · [structured-output.py](levels/10-ai-driven-sdlc/examples/structured-output.py) · [mcp-config.json](levels/10-ai-driven-sdlc/examples/mcp-config.json)
-
-**Anthropic Academy:**
-
-| Course | Lessons |
-|--------|---------|
-| Claude Code in Action | [Summary and next steps](https://anthropic.skilljar.com/claude-code-in-action/303238) |
-| Claude 101 | [Claude in action: use-cases by role](https://anthropic.skilljar.com/claude-101/383401) |
-
----
-
-## Quick Reference
-
-### Slash Commands
-
-| Command | What it does |
-|---------|-------------|
-| `/help` | Show available commands |
-| `/model` | Switch AI model |
-| `/effort` | Adjust reasoning effort |
-| `/clear` | Start fresh conversation |
-| `/resume` | Continue previous session |
-| `/branch` | Fork conversation at current point |
-| `/rewind` | Return to last checkpoint |
-| `/plan` | Enter plan mode |
-| `/ultraplan` | Draft plan in cloud sandbox |
-| `/batch` | Orchestrate large-scale changes |
-| `/loop [interval]` | Run prompt on a schedule |
-| `/schedule` | Create a cloud-hosted routine |
-| `/memory` | Edit CLAUDE.md |
-| `/permissions` | Manage allow/deny rules |
-| `/config` | Open settings |
-| `/status` | View account and version info |
-| `/cost` | Show token usage for this session |
-| `/debug` | Enable debug logging |
-| `/doctor` | Diagnose installation issues |
-| `/export` | Export conversation |
-| `/review` | Code review in current context |
-| `/ultrareview` | Deep multi-agent code review |
-| `/security-review` | Security vulnerability scan |
-| `/simplify` | Code quality improvements |
-| `/remote-control` | Enable browser-based remote control |
-| `/teleport` | Move session between terminal and web |
-| `/release-notes` | View recent release notes |
-
-### CLI Flags
-
-```
-claude                              Start interactive session
-claude "query"                      Start with initial prompt
-claude -p "query"                   Non-interactive (pipeline/CI use)
-claude -c                           Continue last session
-claude -r "session-name"            Resume specific named session
-claude --model claude-sonnet-4-6    Use specific model
-claude --effort high                Set effort level (low/medium/high)
-claude --permission-mode plan       Start in plan mode
-claude --system-prompt "..."        Custom system prompt
-claude --add-dir /path              Add extra working directory
-claude --output-format json         Machine-readable JSON output
-claude --debug                      Enable debug mode
-claude --help                       Show all flags
-```
-
-### Permission Modes
-
-| Mode | Behavior | When to use |
-|------|----------|-------------|
-| `default` | Prompts on sensitive operations | New projects, unfamiliar codebases |
-| `plan` | Shows full plan before executing | Risky operations, onboarding |
-| `auto` | Allows safe operations silently | Daily use once config is trusted |
-| `bypassPermissions` | Skips all permission checks | Sandboxed CI environments only |
-
-### Reference Files
-
-| Resource | Description |
-|----------|-------------|
-| [Command Cheatsheet](quick-reference/command-cheatsheet.md) | All slash commands with descriptions |
-| [CLI Flags Cheatsheet](quick-reference/cli-flags-cheatsheet.md) | All CLI flags with examples |
-| [Permission Modes Guide](quick-reference/permission-modes.md) | Permission mode comparison |
-| [Prompt Patterns — Developer](quick-reference/prompt-patterns-developer.md) | 30 copy-paste prompts for developers |
-| [Prompt Patterns — QA](quick-reference/prompt-patterns-qa.md) | 30 copy-paste prompts for QA engineers |
-| [CurriculumReference.md](CurriculumReference.md) | Original documentation-only reference |
+### Claude 101
+- [Claude in action: use-cases by role](https://anthropic.skilljar.com/claude-101/383401)
